@@ -2,12 +2,14 @@
 Snake Game — main.py
 =====================
 A complete Pygame Snake game featuring:
-  • Real-time Score  (+10 per food eaten)
-  • Live Timer       (elapsed seconds since game start)
+  • Intro Screen      (title, team credit, press S to start)
+  • Real-time Score   (+10 per food eaten)
+  • Live Timer        (elapsed seconds since game start)
   • Professional Game Over screen with final stats + restart/quit
 
-Controls during gameplay : Arrow Keys
-Controls on Game Over    : R → Restart  |  Q → Quit
+Controls on Intro    : S → Start
+Controls during game : Arrow Keys
+Controls on Game Over: R → Restart  |  Q → Quit
 
 Run: python main.py
 """
@@ -27,42 +29,48 @@ GRID_COLS = WINDOW_WIDTH  // CELL_SIZE  # 40 columns
 GRID_ROWS = WINDOW_HEIGHT // CELL_SIZE  # 32 rows
 
 HUD_HEIGHT = 40                         # Height of the top status bar (px)
-# The playable area starts below the HUD
-PLAY_TOP = HUD_HEIGHT
+PLAY_TOP   = HUD_HEIGHT                 # Playable area starts below the HUD
 
-FPS         = 12    # Base snake speed (frames per second)
-SCORE_STEP  = 10    # Points awarded per food item
+FPS        = 12   # Base snake speed (frames per second)
+SCORE_STEP = 10   # Points awarded per food item
 
 # ---------------------------------------------------------------------------
 # Colour Palette
 # ---------------------------------------------------------------------------
-C_BG            = (10,  12,  20)    # Near-black background
-C_GRID          = (22,  26,  42)    # Subtle grid lines
-C_HUD_BG        = (6,   8,  15)    # Darker top bar
-C_HUD_BORDER    = (35,  40,  65)    # HUD bottom separator
+C_BG            = (10,  12,  20)
+C_GRID          = (22,  26,  42)
+C_HUD_BG        = (6,   8,  15)
+C_HUD_BORDER    = (35,  40,  65)
 
-C_SNAKE_HEAD    = (60,  230, 120)   # Bright green head
-C_SNAKE_BODY    = (34,  160,  85)   # Darker green body
-C_SNAKE_OUTLINE = (18,   90,  48)   # Thin outline for depth
+C_SNAKE_HEAD    = (60,  230, 120)
+C_SNAKE_BODY    = (34,  160,  85)
+C_SNAKE_OUTLINE = (18,   90,  48)
 
-C_FOOD          = (235,  75,  75)   # Vivid red food
-C_FOOD_SHINE    = (255, 160, 160)   # Small highlight dot
+C_FOOD          = (235,  75,  75)
+C_FOOD_SHINE    = (255, 160, 160)
 
-C_SCORE_LABEL   = (160, 165, 185)   # Muted label text
-C_SCORE_VALUE   = (80,  220, 140)   # Bright green value
+C_SCORE_LABEL   = (160, 165, 185)
+C_SCORE_VALUE   = (80,  220, 140)
 C_TIMER_LABEL   = (160, 165, 185)
-C_TIMER_VALUE   = (100, 185, 255)   # Blue timer value
+C_TIMER_VALUE   = (100, 185, 255)
 
-C_OVER_OVERLAY  = (0, 0, 0, 185)    # Semi-transparent black overlay
-C_OVER_TITLE    = (235,  75,  75)   # Red "GAME OVER"
-C_OVER_TEXT     = (200, 205, 220)   # White-ish body text
-C_OVER_SCORE    = (80,  220, 140)   # Green final-score line
-C_OVER_TIME     = (100, 185, 255)   # Blue time-survived line
-C_OVER_RESTART  = (80,  220, 140)   # Restart hint
-C_OVER_QUIT     = (235,  75,  75)   # Quit hint
-C_DIVIDER       = (50,   55,  85)   # Horizontal divider on overlay
+C_OVER_OVERLAY  = (0, 0, 0, 185)
+C_OVER_TITLE    = (235,  75,  75)
+C_OVER_TEXT     = (200, 205, 220)
+C_OVER_SCORE    = (80,  220, 140)
+C_OVER_TIME     = (100, 185, 255)
+C_OVER_RESTART  = (80,  220, 140)
+C_OVER_QUIT     = (235,  75,  75)
+C_DIVIDER       = (50,   55,  85)
 
-# Direction vectors (Δcol, Δrow)
+# Intro screen specific colours
+C_INTRO_TITLE   = (60,  230, 120)   # Bold green  — "Snake Game"
+C_INTRO_CREDIT  = (160, 165, 185)   # Muted grey  — "Developed by"
+C_INTRO_TEAM    = (100, 185, 255)   # Blue accent — "Greenland Team"
+C_INTRO_PRESS   = (200, 205, 220)   # White-ish   — "Press  to Start"
+C_INTRO_KEY     = (60,  230, 120)   # Green       — the "S" key letter
+
+# Direction vectors (delta-col, delta-row)
 DIR_UP    = ( 0, -1)
 DIR_DOWN  = ( 0,  1)
 DIR_LEFT  = (-1,  0)
@@ -70,7 +78,7 @@ DIR_RIGHT = ( 1,  0)
 
 
 # ===========================================================================
-# Utility — grid cell → pixel Rect
+# Utility — convert grid cell coordinates to a pixel Rect
 # ===========================================================================
 def cell_rect(col: int, row: int) -> pygame.Rect:
     """Return the pixel Rect for a grid cell, offset below the HUD."""
@@ -83,20 +91,17 @@ def cell_rect(col: int, row: int) -> pygame.Rect:
 
 
 # ===========================================================================
-# Food — position + rendering
+# Food — random placement and drawing
 # ===========================================================================
 class Food:
-    """Manages the food pellet: random placement and drawing."""
+    """Manages the food pellet: random placement and circle rendering."""
 
     def __init__(self) -> None:
         self.col = 0
         self.row = 0
 
     def spawn(self, occupied: set[tuple[int, int]]) -> None:
-        """
-        Place food on a random empty grid cell.
-        Re-rolls until the chosen cell is not occupied by the snake.
-        """
+        """Re-roll until a cell not occupied by the snake is found."""
         play_rows = (WINDOW_HEIGHT - PLAY_TOP) // CELL_SIZE
         while True:
             col = random.randint(0, GRID_COLS - 1)
@@ -118,12 +123,12 @@ class Food:
 
 
 # ===========================================================================
-# Snake — body, movement, collision, rendering
+# Snake — body list, movement, collision detection, and rendering
 # ===========================================================================
 class Snake:
     """
-    Controls the snake's body (a list of (col, row) tuples).
-    body[0] is always the head.
+    Represents the player snake.
+    body[0] is always the head; body grows toward the tail end.
     """
 
     def __init__(self) -> None:
@@ -143,29 +148,18 @@ class Snake:
         self.grew        = False
         self.alive       = True
 
-    # ------------------------------------------------------------------
     def queue_direction(self, new_dir: tuple[int, int]) -> None:
-        """
-        Buffer a direction change.
-        Prevents instant 180° reversal (moving into your own neck).
-        """
+        """Buffer a direction change; prevents instant 180-degree reversal."""
         opposite = (-new_dir[0], -new_dir[1])
         if new_dir != opposite:
             self._queued_dir = new_dir
 
-    # ------------------------------------------------------------------
     def move(self) -> None:
-        """
-        Advance the snake one cell forward.
-        Applies the queued direction, calculates the new head,
-        checks wall and self-collision, then shifts the body.
-        """
+        """Advance head by one cell; check wall and self-collision."""
         self.direction = self._queued_dir
-
         head_col, head_row = self.body[0]
-        dc, dr = self.direction
+        dc, dr   = self.direction
         new_head = (head_col + dc, head_row + dr)
-
         play_rows = (WINDOW_HEIGHT - PLAY_TOP) // CELL_SIZE
 
         # Wall collision
@@ -180,18 +174,16 @@ class Snake:
 
         self.body.insert(0, new_head)
         if not self.grew:
-            self.body.pop()
+            self.body.pop()   # Normal move — remove tail
         else:
-            self.grew = False
+            self.grew = False  # Growth tick — keep tail
 
-    # ------------------------------------------------------------------
     def draw(self, surface: pygame.Surface) -> None:
         for i, (col, row) in enumerate(self.body):
             rect  = cell_rect(col, row)
             inner = rect.inflate(-2, -2)
-
             if i == 0:
-                # Head: brighter colour + eyes
+                # Head: brighter fill + directional eyes
                 pygame.draw.rect(surface, C_SNAKE_OUTLINE, inner, border_radius=6)
                 pygame.draw.rect(surface, C_SNAKE_HEAD, inner.inflate(-2, -2), border_radius=5)
                 self._draw_eyes(surface, rect)
@@ -200,19 +192,17 @@ class Snake:
                 pygame.draw.rect(surface, C_SNAKE_BODY,    inner.inflate(-2, -2), border_radius=3)
 
     def _draw_eyes(self, surface: pygame.Surface, head_rect: pygame.Rect) -> None:
-        """Draw two pupils oriented toward the current direction of travel."""
+        """Draw two small pupils oriented in the current direction of travel."""
         cx, cy   = head_rect.centerx, head_rect.centery
         dc, dr   = self.direction
         forward  = (dc * 3, dr * 3)
         sideways = 4
-
-        if dc != 0:   # Horizontal movement → eyes above/below
+        if dc != 0:   # Horizontal movement → eyes above/below centre
             e1 = (cx + forward[0], cy + forward[1] - sideways)
             e2 = (cx + forward[0], cy + forward[1] + sideways)
-        else:         # Vertical movement → eyes left/right
+        else:         # Vertical movement → eyes left/right of centre
             e1 = (cx + forward[0] - sideways, cy + forward[1])
             e2 = (cx + forward[0] + sideways, cy + forward[1])
-
         for eye in (e1, e2):
             pygame.draw.circle(surface, (240, 240, 240), eye, 2)
             pygame.draw.circle(surface, (20,  20,  20),  eye, 1)
@@ -227,7 +217,111 @@ class Snake:
 
 
 # ===========================================================================
-# HUD / UI functions
+# INTRO SCREEN — shown once when the game launches (and on restart)
+# ===========================================================================
+def show_intro(surface: pygame.Surface, clock: pygame.time.Clock) -> None:
+    """
+    Display the title screen and block until the player presses S.
+
+    Visual layout (vertically centred on the window)
+    -------------------------------------------------
+      ─────────────── divider ───────────────
+           Snake Game          ← large, bold, GREEN
+         Developed by
+          Greenland Team       ← blue accent
+      ─────────────── divider ───────────────
+         Press  S  to Start    ← pulsing hint
+
+    The "Press S to Start" line pulses (alpha fade) to attract attention.
+    The "S" key is rendered in green to match the title colour.
+    """
+    # ---- Intro-specific fonts ----
+    font_title  = pygame.font.SysFont("consolas", 64, bold=True)
+    font_credit = pygame.font.SysFont("consolas", 20, bold=False)
+    font_team   = pygame.font.SysFont("consolas", 22, bold=True)
+    font_press  = pygame.font.SysFont("consolas", 22, bold=True)
+
+    cx = WINDOW_WIDTH  // 2
+    cy = WINDOW_HEIGHT // 2
+
+    # Pre-render static text surfaces
+    title_surf  = font_title.render("Snake Game",     True, C_INTRO_TITLE)
+    credit_surf = font_credit.render("Developed by",  True, C_INTRO_CREDIT)
+    team_surf   = font_team.render("Greenland Team",  True, C_INTRO_TEAM)
+
+    # "Press S to Start" — three segments so "S" can be a different colour
+    seg_pre  = font_press.render("Press ",     True, C_INTRO_PRESS)
+    seg_key  = font_press.render("S",          True, C_INTRO_KEY)
+    seg_post = font_press.render(" to Start",  True, C_INTRO_PRESS)
+
+    # Total width of the full hint line (used to centre it)
+    hint_total_w = seg_pre.get_width() + seg_key.get_width() + seg_post.get_width()
+    hint_x       = cx - hint_total_w // 2
+    hint_y       = cy + 100
+
+    # Pulse state — oscillates alpha between 60 and 255
+    pulse_alpha = 255
+    pulse_dir   = -3     # negative = fading out
+
+    # ---- Intro event loop ----
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_s:
+                return    # S pressed → exit intro, game begins
+
+        # Background + faint grid (matches the game's look)
+        surface.fill(C_BG)
+        for col in range(GRID_COLS + 1):
+            pygame.draw.line(surface, C_GRID,
+                             (col * CELL_SIZE, 0),
+                             (col * CELL_SIZE, WINDOW_HEIGHT))
+        for row in range(GRID_ROWS + 1):
+            pygame.draw.line(surface, C_GRID,
+                             (0, row * CELL_SIZE),
+                             (WINDOW_WIDTH, row * CELL_SIZE))
+
+        # Top divider
+        pygame.draw.line(surface, C_DIVIDER,
+                         (cx - 250, cy - 100), (cx + 250, cy - 100), 1)
+
+        # "Snake Game" title — bold, green, centred
+        surface.blit(title_surf, title_surf.get_rect(center=(cx, cy - 44)))
+
+        # "Developed by" — small, muted
+        surface.blit(credit_surf, credit_surf.get_rect(center=(cx, cy + 18)))
+
+        # "Greenland Team" — slightly larger, blue accent
+        surface.blit(team_surf, team_surf.get_rect(center=(cx, cy + 46)))
+
+        # Bottom divider
+        pygame.draw.line(surface, C_DIVIDER,
+                         (cx - 250, cy + 74), (cx + 250, cy + 74), 1)
+
+        # Pulsing "Press S to Start"
+        seg_pre.set_alpha(pulse_alpha)
+        seg_key.set_alpha(pulse_alpha)
+        seg_post.set_alpha(pulse_alpha)
+
+        surface.blit(seg_pre,  (hint_x, hint_y))
+        surface.blit(seg_key,  (hint_x + seg_pre.get_width(), hint_y))
+        surface.blit(seg_post, (hint_x + seg_pre.get_width() + seg_key.get_width(), hint_y))
+
+        # Update pulse — bounce alpha between 60 and 255
+        pulse_alpha += pulse_dir
+        if pulse_alpha <= 60:
+            pulse_dir = +3
+        elif pulse_alpha >= 255:
+            pulse_dir = -3
+
+        pygame.display.flip()
+        clock.tick(60)   # 60 fps for smooth pulse animation
+
+
+# ===========================================================================
+# HUD — display_stats(): Score (top-left) and Timer (top-right)
 # ===========================================================================
 def display_stats(
     surface: pygame.Surface,
@@ -236,57 +330,44 @@ def display_stats(
     elapsed_seconds: int,
 ) -> None:
     """
-    Render the real-time Score and Timer in the top status bar.
+    Draw the top status bar with real-time Score and Timer.
 
-    Layout
-    ------
-    [SCORE  label]  [score value]       [TIME  label]  [time value]
-    Left-aligned                        Right-aligned
-
-    Parameters
-    ----------
-    surface        : the main pygame display surface
-    fonts          : dict of pre-loaded Font objects (keys: 'hud', ...)
-    score          : current points total
-    elapsed_seconds: integer seconds since the game started
+    Time format: MM:SS
+      minutes = elapsed_seconds // 60
+      seconds = elapsed_seconds % 60
     """
-    # Dark HUD background strip
-    hud_rect = pygame.Rect(0, 0, WINDOW_WIDTH, HUD_HEIGHT)
-    pygame.draw.rect(surface, C_HUD_BG, hud_rect)
-
-    # Bottom separator line
-    pygame.draw.line(surface, C_HUD_BORDER, (0, HUD_HEIGHT - 1), (WINDOW_WIDTH, HUD_HEIGHT - 1))
+    # HUD background strip
+    pygame.draw.rect(surface, C_HUD_BG, pygame.Rect(0, 0, WINDOW_WIDTH, HUD_HEIGHT))
+    pygame.draw.line(surface, C_HUD_BORDER,
+                     (0, HUD_HEIGHT - 1), (WINDOW_WIDTH, HUD_HEIGHT - 1))
 
     f = fonts["hud"]
 
-    # --- Left: Score ---
+    # Left — Score label + value
     lbl_score = f.render("SCORE", True, C_SCORE_LABEL)
     val_score = f.render(str(score), True, C_SCORE_VALUE)
     surface.blit(lbl_score, (14, (HUD_HEIGHT - lbl_score.get_height()) // 2))
     surface.blit(val_score, (14 + lbl_score.get_width() + 10,
                               (HUD_HEIGHT - val_score.get_height()) // 2))
 
-    # --- Right: Timer ---
-    # Convert elapsed_seconds to MM:SS format
-    minutes = elapsed_seconds // 60
-    seconds = elapsed_seconds % 60
+    # Right — Timer label + MM:SS value
+    minutes  = elapsed_seconds // 60
+    seconds  = elapsed_seconds % 60
     time_str = f"{minutes:02d}:{seconds:02d}"
 
     lbl_time = f.render("TIME", True, C_TIMER_LABEL)
-    val_time = f.render(time_str, True, C_TIMER_VALUE)
+    val_time = f.render(time_str,  True, C_TIMER_VALUE)
+    total_w  = lbl_time.get_width() + 10 + val_time.get_width()
+    start_x  = WINDOW_WIDTH - total_w - 14
 
-    # Measure from the right edge
-    total_w   = lbl_time.get_width() + 10 + val_time.get_width()
-    start_x   = WINDOW_WIDTH - total_w - 14
-    mid_y_lbl = (HUD_HEIGHT - lbl_time.get_height()) // 2
-    mid_y_val = (HUD_HEIGHT - val_time.get_height()) // 2
-
-    surface.blit(lbl_time, (start_x, mid_y_lbl))
-    surface.blit(val_time, (start_x + lbl_time.get_width() + 10, mid_y_val))
+    surface.blit(lbl_time, (start_x, (HUD_HEIGHT - lbl_time.get_height()) // 2))
+    surface.blit(val_time, (start_x + lbl_time.get_width() + 10,
+                             (HUD_HEIGHT - val_time.get_height()) // 2))
 
 
-# ---------------------------------------------------------------------------
-
+# ===========================================================================
+# Game Over overlay — game_over_screen()
+# ===========================================================================
 def game_over_screen(
     surface: pygame.Surface,
     fonts: dict,
@@ -294,31 +375,13 @@ def game_over_screen(
     elapsed_ms: int,
 ) -> None:
     """
-    Draw a professional Game Over overlay on top of the frozen game frame.
+    Semi-transparent overlay with final score, time survived, and key hints.
 
-    What is shown
-    -------------
-    • "GAME OVER"     — large, red, bold
-    • Horizontal divider
-    • Final Score     — green value
-    • Time Survived   — blue value, converted from ms → MM:SS
-    • Restart hint    — "Press R to Restart"
-    • Quit hint       — "Press Q to Quit"
-
-    Parameters
-    ----------
-    surface    : the main pygame display surface (game frame already on it)
-    fonts      : dict of pre-loaded Font objects (keys: 'title', 'over', 'hint')
-    score      : the player's final score
-    elapsed_ms : total milliseconds survived (from pygame.time.get_ticks())
-
-    Time conversion
-    ---------------
-    pygame.time.get_ticks() returns milliseconds (ms).
-    Dividing by 1000 gives whole seconds.
-    Further dividing by 60 gives minutes; remainder = remaining seconds.
+    Time conversion (ms → MM:SS):
+      elapsed_seconds = elapsed_ms // 1000    (ms ÷ 1000 = seconds)
+      minutes         = elapsed_seconds // 60
+      seconds         = elapsed_seconds % 60
     """
-    # ---- Semi-transparent overlay covering the entire window ----
     overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
     overlay.fill(C_OVER_OVERLAY)
     surface.blit(overlay, (0, 0))
@@ -326,37 +389,32 @@ def game_over_screen(
     cx = WINDOW_WIDTH  // 2
     cy = WINDOW_HEIGHT // 2
 
-    # ---- "GAME OVER" title ----
+    # "GAME OVER" — large red title
     title_surf = fonts["title"].render("GAME OVER", True, C_OVER_TITLE)
     surface.blit(title_surf, title_surf.get_rect(center=(cx, cy - 110)))
 
-    # ---- Horizontal divider ----
-    div_y = cy - 68
-    pygame.draw.line(surface, C_DIVIDER, (cx - 220, div_y), (cx + 220, div_y), 1)
+    pygame.draw.line(surface, C_DIVIDER, (cx - 220, cy - 68), (cx + 220, cy - 68), 1)
 
-    # ---- Final Score ----
-    lbl_sc   = fonts["over"].render("Final Score", True, C_OVER_TEXT)
-    val_sc   = fonts["over"].render(str(score),    True, C_OVER_SCORE)
+    # Final Score
+    lbl_sc = fonts["over"].render("Final Score", True, C_OVER_TEXT)
+    val_sc = fonts["over"].render(str(score),    True, C_OVER_SCORE)
     surface.blit(lbl_sc, lbl_sc.get_rect(center=(cx, cy - 38)))
     surface.blit(val_sc, val_sc.get_rect(center=(cx, cy +  0)))
 
-    # ---- Time Survived ----
-    #  elapsed_ms  (milliseconds) → elapsed_seconds (whole seconds)
-    elapsed_seconds = elapsed_ms // 1000          # ms ÷ 1000 = seconds
-    minutes         = elapsed_seconds // 60       # whole minutes
-    seconds         = elapsed_seconds % 60        # remaining seconds
+    # Time Survived
+    elapsed_seconds = elapsed_ms // 1000
+    minutes         = elapsed_seconds // 60
+    seconds         = elapsed_seconds % 60
     time_str        = f"{minutes:02d}:{seconds:02d}"
 
-    lbl_tm  = fonts["over"].render("Time Survived", True, C_OVER_TEXT)
-    val_tm  = fonts["over"].render(time_str,        True, C_OVER_TIME)
+    lbl_tm = fonts["over"].render("Time Survived", True, C_OVER_TEXT)
+    val_tm = fonts["over"].render(time_str,        True, C_OVER_TIME)
     surface.blit(lbl_tm, lbl_tm.get_rect(center=(cx, cy + 46)))
     surface.blit(val_tm, val_tm.get_rect(center=(cx, cy + 82)))
 
-    # ---- Second divider ----
-    div2_y = cy + 108
-    pygame.draw.line(surface, C_DIVIDER, (cx - 220, div2_y), (cx + 220, div2_y), 1)
+    pygame.draw.line(surface, C_DIVIDER, (cx - 220, cy + 108), (cx + 220, cy + 108), 1)
 
-    # ---- Key hints ----
+    # Key hints
     hint_r = fonts["hint"].render("Press  R  to Restart", True, C_OVER_RESTART)
     hint_q = fonts["hint"].render("Press  Q  to Quit",    True, C_OVER_QUIT)
     surface.blit(hint_r, hint_r.get_rect(center=(cx, cy + 135)))
@@ -367,13 +425,13 @@ def game_over_screen(
 # Grid background
 # ===========================================================================
 def draw_background(surface: pygame.Surface) -> None:
-    """Fill the play area and draw faint grid lines."""
-    play_rect = pygame.Rect(0, PLAY_TOP, WINDOW_WIDTH, WINDOW_HEIGHT - PLAY_TOP)
-    pygame.draw.rect(surface, C_BG, play_rect)
-
+    """Dark background + faint grid lines in the play area."""
+    pygame.draw.rect(surface, C_BG,
+                     pygame.Rect(0, PLAY_TOP, WINDOW_WIDTH, WINDOW_HEIGHT - PLAY_TOP))
     for col in range(GRID_COLS + 1):
-        x = col * CELL_SIZE
-        pygame.draw.line(surface, C_GRID, (x, PLAY_TOP), (x, WINDOW_HEIGHT))
+        pygame.draw.line(surface, C_GRID,
+                         (col * CELL_SIZE, PLAY_TOP),
+                         (col * CELL_SIZE, WINDOW_HEIGHT))
     play_rows = (WINDOW_HEIGHT - PLAY_TOP) // CELL_SIZE
     for row in range(play_rows + 1):
         y = row * CELL_SIZE + PLAY_TOP
@@ -381,15 +439,15 @@ def draw_background(surface: pygame.Surface) -> None:
 
 
 # ===========================================================================
-# Main Game
+# Entry point — init → intro → game loop
 # ===========================================================================
 def main() -> None:
     pygame.init()
     screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-    pygame.display.set_caption("Snake  |  Arrow Keys to Play")
-    clock = pygame.time.Clock()
+    pygame.display.set_caption("Snake  |  Greenland Team")
+    clock  = pygame.time.Clock()
 
-    # ---- Pre-load fonts (done once for performance) ----
+    # Pre-load fonts used during gameplay (done once for performance)
     fonts = {
         "hud"  : pygame.font.SysFont("consolas", 17, bold=True),
         "title": pygame.font.SysFont("consolas", 54, bold=True),
@@ -397,25 +455,26 @@ def main() -> None:
         "hint" : pygame.font.SysFont("consolas", 17, bold=True),
     }
 
-    # ---- Game objects ----
+    # ---- Show intro — waits here until player presses S ----
+    show_intro(screen, clock)
+
+    # ---- Initialise game objects right after S is pressed ----
     snake = Snake()
     food  = Food()
     food.spawn(snake.cells)
 
-    # ---- State ----
-    score: int  = 0
-    game_over   = False
+    score: int   = 0
+    game_over    = False
 
-    # Record the moment the game begins.
-    # pygame.time.get_ticks() returns milliseconds since pygame.init().
+    # Record start time in milliseconds.
+    # pygame.time.get_ticks() counts ms since pygame.init() was called.
+    # Subtracting start_ticks every frame isolates this game session's time.
     start_ticks: int = pygame.time.get_ticks()
-    final_ms: int    = 0     # Will be frozen the moment the game ends
+    final_ms: int    = 0   # Frozen at the moment of death
 
-    # ===========================================================================
-    # Main Loop
-    # ===========================================================================
+    # ---- Main game loop ----
     while True:
-        # ---- Event handling ----
+        # Events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -423,7 +482,6 @@ def main() -> None:
 
             if event.type == pygame.KEYDOWN:
                 if not game_over:
-                    # Direction controls — only active while game is running
                     if event.key == pygame.K_UP:
                         snake.queue_direction(DIR_UP)
                     elif event.key == pygame.K_DOWN:
@@ -433,49 +491,38 @@ def main() -> None:
                     elif event.key == pygame.K_RIGHT:
                         snake.queue_direction(DIR_RIGHT)
                 else:
-                    # Game Over screen controls
                     if event.key == pygame.K_r:
-                        # Full reset — re-run main() to get a clean slate
-                        main()
+                        main()   # Restart — goes back to intro screen
                         return
                     elif event.key == pygame.K_q:
                         pygame.quit()
                         sys.exit()
 
-        # ---- Update (only when alive) ----
+        # Update
         if not game_over:
             snake.move()
 
             if not snake.alive:
-                # Snake just died — freeze the timer right now
+                # Freeze the timer at the exact death frame
                 final_ms  = pygame.time.get_ticks() - start_ticks
                 game_over = True
 
             elif snake.head == food.position:
-                # Snake ate food
                 score     += SCORE_STEP
                 snake.grew = True
                 food.spawn(snake.cells)
 
-        # ---- Calculate elapsed time ----
-        # pygame.time.get_ticks() gives current ms from program start.
-        # Subtracting start_ticks isolates only the current game's duration.
-        # Integer division by 1000 converts ms → whole seconds for display.
-        if not game_over:
-            elapsed_ms      = pygame.time.get_ticks() - start_ticks
-        # else: elapsed_ms stays frozen at final_ms (set above on death)
+        # Elapsed time calculation:
+        # get_ticks() returns ms → subtract start → divide by 1000 for seconds
+        elapsed_ms      = final_ms if game_over else (pygame.time.get_ticks() - start_ticks)
+        elapsed_seconds = elapsed_ms // 1000
 
-        elapsed_seconds = (final_ms if game_over else elapsed_ms) // 1000
-
-        # ---- Render ----
+        # Render
         draw_background(screen)
         food.draw(screen)
         snake.draw(screen)
-
-        # HUD: score top-left, timer top-right — drawn last so they sit on top
         display_stats(screen, fonts, score, elapsed_seconds)
 
-        # Game Over overlay — drawn over everything when triggered
         if game_over:
             game_over_screen(screen, fonts, score, final_ms)
 
@@ -483,8 +530,6 @@ def main() -> None:
         clock.tick(FPS)
 
 
-# ---------------------------------------------------------------------------
-# Entry point
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
     main()
