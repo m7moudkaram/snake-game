@@ -22,7 +22,7 @@ and a professional Game Over screen.
 
 ---
 
-## ✨ Features
+## Features
 
 | Feature | Detail |
 |---|---|
@@ -37,7 +37,7 @@ and a professional Game Over screen.
 
 ---
 
-## 🗂️ Project Structure
+## Project Structure
 
 ```
 Snake-Game/
@@ -62,7 +62,7 @@ main.py
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -85,7 +85,7 @@ python main.py
 
 ---
 
-## 🎮 Controls
+## Controls
 
 | Key | Action |
 |---|---|
@@ -95,7 +95,7 @@ python main.py
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 All tuneable constants are grouped at the top of `main.py`:
 
@@ -112,7 +112,7 @@ Change any of these and the rest of the game adapts automatically.
 
 ---
 
-## 🏗️ Architecture Notes
+## Architecture Notes
 
 ### Timer — how `get_ticks()` is used
 
