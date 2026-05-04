@@ -5,23 +5,6 @@ Includes a real-time score tracker, live timer, smooth grid movement,
 and a professional Game Over screen.
 
 ---
-
-## 📸 Preview
-
-```
-┌─────────────────────────────────────────┐
-│  SCORE  80                   TIME 00:42 │  ← HUD Bar
-├─────────────────────────────────────────┤
-│  · · · · · · · · · · · · · · · · · · · │
-│  · · · · · ██████ · · · · · · · · · · · │
-│  · · · · · ██████ · · · · · · · · · · · │
-│  · · · · · ██HEAD→ · · · · 🔴 · · · · · │
-│  · · · · · · · · · · · · · · · · · · · │
-└─────────────────────────────────────────┘
-```
-
----
-
 ## Features
 
 | Feature | Detail |
